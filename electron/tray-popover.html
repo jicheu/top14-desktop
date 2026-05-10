@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Top 14 Live</title>
+  <style>
+    :root {
+      --bg:       #0f1923;
+      --surface:  #1a2733;
+      --border:   #2d3f4f;
+      --text:     #e8edf2;
+      --muted:    #8899a6;
+      --accent:   #1da1f2;
+      --live:     #e74c3c;
+      --success:  #2ecc71;
+      --radius:   10px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg:      #f5f8fa;
+        --surface: #ffffff;
+        --border:  #e1e8ed;
+        --text:    #14171a;
+        --muted:   #657786;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.4;
+      user-select: none;
+      -webkit-app-region: no-drag;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .header-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .open-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .open-btn:hover { opacity: 0.85; }
+
+    /* ── Competition selector ── */
+    .competition-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 14px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .competition-bar::-webkit-scrollbar { display: none; }
+    .comp-btn {
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .comp-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── Match list ── */
+    .match-list {
+      overflow-y: auto;
+      max-height: 360px;
+    }
+
+    .match-item {
+      display: flex;
+      flex-direction: column;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .match-item.live { background: rgba(231, 76, 60, 0.06); }
+
+    .match-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .status-pill.live-pill {
+      background: var(--live);
+      color: #fff;
+      border-color: var(--live);
+      animation: pulse-pill 2s ease-in-out infinite;
+    }
+    @keyframes pulse-pill {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.7; }
+    }
+
+    .teams {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+    .team-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .team-name.away { text-align: right; }
+
+    .badge { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+
+    .score {
+      font-weight: 800;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .score.ns {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    /* ── Empty / loading ── */
+    .empty {
+      padding: 32px 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">🏉 Top 14 Live</span>
+  <button class="open-btn" onclick="openApp()">Ouvrir</button>
+</div>
+
+<div class="competition-bar" id="compBar"></div>
+
+<div class="match-list" id="matchList">
+  <div class="empty">Chargement…</div>
+</div>
+
+<div class="footer" id="footer">Mise à jour automatique toutes les 30 s</div>
+
+<script>
+  const COMPETITIONS = {
+    top14:          'Top 14',
+    premiership:    'Premiership',
+    urc:            'URC',
+    super_rugby:    'Super Rugby',
+    six_nations_male: '6 Nations',
+    rugby_championship: 'Rugby Champ.',
+    champions_cup:  'Champions Cup',
+    challenge_cup:  'Challenge Cup',
+  };
+
+  const STATUS_LABEL = {
+    NS:  'À venir', '1H': '1MT', HT: 'MT', '2H': '2MT',
+    FT:  'Fin',     PST: 'Reporté', CANC: 'Annulé',
+    Started: 'Live',
+  };
+  const LIVE_STATUSES = new Set(['1H', 'HT', '2H', 'Started']);
+
+  let currentComp = 'top14';
+  let lastUpdated = null;
+
+  // ── Competition bar ───────────────────────────────────────────────────────
+
+  function renderCompBar() {
+    const bar = document.getElementById('compBar');
+    bar.innerHTML = Object.entries(COMPETITIONS).map(([id, name]) =>
+      `<button class="comp-btn ${id === currentComp ? 'active' : ''}"
+               onclick="selectComp('${id}')">${name}</button>`
+    ).join('');
+  }
+
+  function selectComp(id) {
+    currentComp = id;
+    renderCompBar();
+    fetchMatches();
+  }
+
+  // ── Match list ────────────────────────────────────────────────────────────
+
+  async function fetchMatches() {
+    try {
+      const resp = await fetch(`http://localhost:3002/api/matches?competition=${currentComp}`);
+      const data = await resp.json();
+      const matches = data.matches || [];
+      lastUpdated = new Date();
+      renderMatches(matches);
+      updateFooter();
+    } catch (err) {
+      document.getElementById('matchList').innerHTML =
+        '<div class="empty">Impossible de contacter le serveur</div>';
+    }
+  }
+
+  function renderMatches(matches) {
+    const list = document.getElementById('matchList');
+
+    // Show live first, then NS, then FT
+    const sorted = [
+      ...matches.filter(m => LIVE_STATUSES.has(m.status)),
+      ...matches.filter(m => m.status === 'NS'),
+      ...matches.filter(m => !LIVE_STATUSES.has(m.status) && m.status !== 'NS'),
+    ];
+
+    if (sorted.length === 0) {
+      list.innerHTML = '<div class="empty">Aucun match disponible</div>';
+      return;
+    }
+
+    list.innerHTML = sorted.map(m => {
+      const isLive = LIVE_STATUSES.has(m.status);
+      const isNS   = m.status === 'NS';
+      const label  = STATUS_LABEL[m.status] || m.status;
+
+      const scoreHtml = isNS
+        ? `<span class="score ns">${(m.match_time || '').substring(0, 5)}</span>`
+        : `<span class="score">${m.score_home ?? '–'}&thinsp;–&thinsp;${m.score_away ?? '–'}</span>`;
+
+      const badgeH = m.home_team_badge
+        ? `<img class="badge" src="${m.home_team_badge}" onerror="this.style.display='none'">`
+        : '';
+      const badgeA = m.away_team_badge
+        ? `<img class="badge" src="${m.away_team_badge}" onerror="this.style.display='none'">`
+        : '';
+
+      return `
+        <div class="match-item ${isLive ? 'live' : ''}">
+          <div class="match-row">
+            <span class="status-pill ${isLive ? 'live-pill' : ''}">${label}</span>
+            <div class="teams">
+              ${badgeH}
+              <span class="team-name">${m.home_team_name}</span>
+              ${scoreHtml}
+              <span class="team-name away">${m.away_team_name}</span>
+              ${badgeA}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function updateFooter() {
+    if (!lastUpdated) return;
+    const t = lastUpdated.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('footer').textContent = `Mis à jour à ${t}`;
+  }
+
+  // ── IPC ───────────────────────────────────────────────────────────────────
+
+  function openApp() {
+    if (window.electronAPI?.openMainWindow) {
+      window.electronAPI.openMainWindow();
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  renderCompBar();
+  fetchMatches();
+  setInterval(fetchMatches, 30_000);
+</script>
+</body>
+</html>

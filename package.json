@@ -1,0 +1,56 @@
+{
+  "name": "top14-desktop",
+  "version": "1.0.0",
+  "description": "Top 14 Live Tracker — native macOS desktop app",
+  "main": "electron/main.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "electron .",
+    "build:frontend": "npm run build --prefix ../top14/frontend && rm -rf frontend-dist && cp -r ../top14/frontend/dist frontend-dist",
+    "build": "npm run build:frontend && electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "socket.io": "^4.7.0",
+    "sql.js": "^1.10.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.top14.desktop",
+    "productName": "Top 14 Live",
+    "mac": {
+      "category": "public.app-category.sports",
+      "icon": "assets/icon.png",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ]
+    },
+    "dmg": {
+      "title": "Top 14 Live"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend-dist/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": ["**/*", "!top14.db"]
+      }
+    ],
+    "asar": true
+  }
+}
