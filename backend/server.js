@@ -27,17 +27,13 @@ import { HybridProvider } from './providers/HybridProvider.js';
 
 const PORT = process.env.PORT || 3002;
 
-// Resolve frontend-dist: in packaged app it lives next to the backend resource;
-// in dev it lives one level up from the backend folder.
+// Resolve frontend-dist: in packaged app ELECTRON_RESOURCES points to
+// Contents/Resources where extraResources are placed; in dev it lives one
+// level up from the backend folder.
 function resolveFrontendDist() {
-  const candidates = [
-    join(__dirname, '..', 'frontend-dist'),           // dev
-    join(process.resourcesPath ?? '', 'frontend-dist'), // packaged
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) return p;
-  }
-  return null;
+  const r = process.env.ELECTRON_RESOURCES;
+  if (r) return join(r, 'frontend-dist');          // packaged (extraResources)
+  return join(__dirname, '..', 'frontend-dist');   // dev
 }
 
 async function main() {
@@ -64,7 +60,10 @@ async function main() {
 
   // ── Tray popover ──────────────────────────────────────────────────────────
   app.get('/tray-popover.html', (_req, res) => {
-    const p = join(__dirname, '..', 'electron', 'tray-popover.html');
+    const r = process.env.ELECTRON_RESOURCES;
+    const p = r
+      ? join(r, 'electron', 'tray-popover.html')          // packaged (extraResources)
+      : join(__dirname, '..', 'electron', 'tray-popover.html'); // dev
     res.sendFile(p);
   });
 

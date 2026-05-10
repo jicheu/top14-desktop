@@ -40,7 +40,6 @@
     },
     "files": [
       "electron/**/*",
-      "frontend-dist/**/*",
       "assets/**/*",
       "node_modules/**/*"
     ],
@@ -49,6 +48,14 @@
         "from": "backend",
         "to": "backend",
         "filter": ["**/*", "!top14.db"]
+      },
+      {
+        "from": "frontend-dist",
+        "to": "frontend-dist"
+      },
+      {
+        "from": "electron/tray-popover.html",
+        "to": "electron/tray-popover.html"
       }
     ],
     "asar": true

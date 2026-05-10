@@ -8,21 +8,34 @@ let trayInstance  = null;
 let popoverWindow = null;
 
 // ── Tray icon ─────────────────────────────────────────────────────────────────
-// Try a file asset first; fall back to a guaranteed-valid 1×1 transparent PNG,
-// then label the menu-bar item with an emoji so it is always visible.
+// Priority:
+//   1. assets/icon.png (512×512 rugby ball emoji) — resized to 22×22
+//   2. assets/trayTemplate.png — if someone provides a proper macOS template
+//   3. Known-valid 1×1 transparent PNG (guaranteed non-empty nativeImage)
+//
+// Wrapping new Tray() in a try-catch prevents a bad icon from crashing the
+// entire whenReady handler in the packaged build.
 
-// Smallest valid PNG: 1×1 transparent pixel
+// Known-valid 1×1 transparent PNG (verified IEND CRC)
 const TRANSPARENT_1X1 =
   'data:image/png;base64,' +
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQ' +
-  'AABjE+ibYAAAAASUVORK5CYII=';
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAC' +
+  'hwGA60e6kgAAAABJRU5ErkJggg==';
 
 function buildTrayIcon() {
-  const iconPath = join(__dirname, '..', 'assets', 'trayTemplate.png');
-  try {
-    const img = nativeImage.createFromPath(iconPath);
-    if (!img.isEmpty()) return img;
-  } catch (_) {}
+  // 1. Try icon.png (always present — generated from emoji)
+  const iconPath     = join(__dirname, '..', 'assets', 'icon.png');
+  const templatePath = join(__dirname, '..', 'assets', 'trayTemplate.png');
+  for (const p of [iconPath, templatePath]) {
+    try {
+      const img = nativeImage.createFromPath(p);
+      if (!img.isEmpty()) {
+        // Resize to 22×22 for menu bar; keep aspect ratio
+        return img.resize({ width: 22, height: 22 });
+      }
+    } catch (_) {}
+  }
+  // 2. Guaranteed fallback
   return nativeImage.createFromDataURL(TRANSPARENT_1X1);
 }
 
@@ -73,7 +86,14 @@ function positionPopover(win) {
 
 export function createTray({ backendUrl, onOpenApp }) {
   const icon = buildTrayIcon();
-  trayInstance = new Tray(icon);
+
+  try {
+    trayInstance = new Tray(icon);
+  } catch (err) {
+    // Last resort: empty nativeImage — menu-bar entry will still show via setTitle
+    console.error('[Tray] new Tray() failed, retrying with empty image:', err.message);
+    trayInstance = new Tray(nativeImage.createEmpty());
+  }
 
   // Use an emoji label — guaranteed visible on any macOS menu bar,
   // even when no icon asset file is present.

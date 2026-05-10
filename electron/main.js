@@ -28,8 +28,9 @@ function startBackend() {
     cwd: backendDir,
     env: {
       ...process.env,
-      PORT:               String(BACKEND_PORT),
-      ELECTRON_USER_DATA: app.getPath('userData'),
+      PORT:                String(BACKEND_PORT),
+      ELECTRON_USER_DATA:  app.getPath('userData'),
+      ELECTRON_RESOURCES:  process.resourcesPath,   // lets backend resolve packaged file paths
     },
     stdio: isDev ? 'pipe' : 'pipe',
   });
