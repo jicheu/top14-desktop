@@ -9,6 +9,7 @@
     "dev": "electron .",
     "build:frontend": "npm run build --prefix ../top14/frontend && rm -rf frontend-dist && cp -r ../top14/frontend/dist frontend-dist",
     "build": "npm run build:frontend && electron-builder --mac",
+    "build:linux": "npm run build:frontend && electron-builder --linux snap",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -58,6 +59,21 @@
         "to": "electron/tray-popover.html"
       }
     ],
-    "asar": true
+    "asar": true,
+    "linux": {
+      "category": "Sports",
+      "icon": "assets/icon.png",
+      "target": [
+        { "target": "snap", "arch": ["x64", "arm64"] }
+      ]
+    },
+    "snap": {
+      "summary": "Top 14 Rugby live score tracker",
+      "description": "Follow Top 14 rugby matches in real time. Live scores, standings and a tray icon for quick access.",
+      "grade": "stable",
+      "confinement": "strict",
+      "plugs": ["default", "network", "network-bind", "home", "opengl", "audio-playback"],
+      "base": "core22"
+    }
   }
 }

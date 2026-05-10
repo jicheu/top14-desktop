@@ -1,0 +1,84 @@
+name: top14-live
+version: '1.0.0'
+summary: Top 14 Rugby live score tracker
+description: |
+  Follow Top 14 rugby matches in real time.
+  Live scores, standings, and a tray icon for quick access from the system tray.
+  The embedded backend polls live data automatically — no configuration needed.
+
+base: core22
+grade: stable
+confinement: strict
+
+# Icon shown in GNOME Software / Ubuntu Software and the app launcher
+icon: assets/icon.png
+
+apps:
+  top14-live:
+    command: opt/top14-live/top14-live --no-sandbox
+    desktop: usr/share/applications/top14-live.desktop
+    extensions: [gnome]
+    plugs:
+      - network
+      - network-bind
+      - home
+      - opengl
+      - audio-playback
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - unity7
+
+parts:
+  top14-live:
+    plugin: nil
+    source: .
+    build-snaps:
+      - node/20/stable
+    override-build: |
+      # Install dependencies
+      npm ci --omit=dev
+
+      # Build the frontend (Vite → frontend-dist)
+      cd ../top14/frontend 2>/dev/null || true
+      npm ci && npm run build
+      cd $CRAFT_PART_SRC
+      rm -rf frontend-dist
+      cp -r ../top14/frontend/dist frontend-dist 2>/dev/null || true
+
+      # Use electron-builder to produce a snap-compatible directory layout
+      npx electron-builder --linux dir --x64
+
+      # Copy the unpacked app into the snap prefix
+      mkdir -p $CRAFT_PART_INSTALL/opt/top14-live
+      cp -r dist/linux-unpacked/. $CRAFT_PART_INSTALL/opt/top14-live/
+
+      # Desktop entry
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/applications
+      cat > $CRAFT_PART_INSTALL/usr/share/applications/top14-live.desktop <<EOF
+      [Desktop Entry]
+      Name=Top 14 Live
+      Comment=Top 14 rugby live score tracker
+      Exec=top14-live
+      Icon=${SNAP}/meta/gui/icon.png
+      Terminal=false
+      Type=Application
+      Categories=Sports;
+      StartupNotify=true
+      EOF
+
+      # Icon
+      mkdir -p $CRAFT_PART_INSTALL/meta/gui
+      cp assets/icon.png $CRAFT_PART_INSTALL/meta/gui/icon.png
+    stage-packages:
+      - libgtk-3-0
+      - libnotify4
+      - libnss3
+      - libxss1
+      - libxtst6
+      - xdg-utils
+      - libatspi2.0-0
+      - libdrm2
+      - libgbm1
+      - libxcb-dri3-0
