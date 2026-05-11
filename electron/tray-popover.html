@@ -178,13 +178,25 @@
 
     /* ── Footer ── */
     .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 8px 14px;
       border-top: 1px solid var(--border);
       background: var(--surface);
       font-size: 10px;
       color: var(--muted);
-      text-align: center;
     }
+    .quit-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .quit-btn:hover { color: var(--live); background: rgba(231,76,60,0.08); }
   </style>
 </head>
 <body>
@@ -200,7 +212,10 @@
   <div class="empty">Chargement…</div>
 </div>
 
-<div class="footer" id="footer">Mise à jour automatique toutes les 30 s</div>
+<div class="footer">
+  <span id="footer">Mise à jour automatique toutes les 30 s</span>
+  <button class="quit-btn" onclick="quitApp()" title="Quitter complètement">⏻ Quitter</button>
+</div>
 
 <script>
   const COMPETITIONS = {
@@ -314,6 +329,12 @@
   function openApp() {
     if (window.electronAPI?.openMainWindow) {
       window.electronAPI.openMainWindow();
+    }
+  }
+
+  function quitApp() {
+    if (window.electronAPI?.quitApp) {
+      window.electronAPI.quitApp();
     }
   }
 

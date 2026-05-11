@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getAllMatches, getMatch, getScoreEvents, getCompetitionRounds, getCompetitionDates, getRecommendedRound, getRecommendedDate, getStandings, getTeamRecentMatches } from '../db/database.js';
+import { getAllMatches, getMatch, getScoreEvents, getCompetitionRounds, getCompetitionDates, getRecommendedRound, getRecommendedDate, getStandings, getTeamRecentMatches, getYoutubeLink, saveYoutubeLink } from '../db/database.js';
+import { searchMatchSummary } from '../services/youtube.js';
 
 /**
  * Creates the matches/standings router, optionally injected with a data provider.
@@ -117,6 +118,44 @@ export default function createMatchesRouter(provider) {
       res.json({ matches });
     } catch (err) {
       console.error('[Routes] Erreur GET /team-form:', err.message);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+
+  /**
+   * GET /api/matches/:id/youtube
+   * Returns a cached or freshly-fetched YouTube summary link for a finished match.
+   */
+  router.get('/matches/:id/youtube', async (req, res) => {
+    try {
+      const match = getMatch(req.params.id);
+      if (!match) return res.status(404).json({ error: 'Match non trouvé' });
+
+      const isFinished = ['FT', 'Match Finished'].includes(match.status);
+      if (!isFinished) return res.status(204).end();
+
+      const cached = getYoutubeLink(match.id);
+      if (cached) {
+        return res.json({
+          videoId: cached.video_id,
+          title:   cached.video_title,
+          url:     `https://www.youtube.com/watch?v=${cached.video_id}`,
+        });
+      }
+
+      const result = await searchMatchSummary(match);
+
+      if (result?.videoId) {
+        saveYoutubeLink(match.id, result.videoId, result.title);
+      }
+
+      return res.json({
+        videoId: result?.videoId ?? null,
+        title:   result?.title ?? null,
+        url:     result?.videoId ? `https://www.youtube.com/watch?v=${result.videoId}` : null,
+      });
+    } catch (err) {
+      console.error('[Routes] Erreur GET /matches/:id/youtube:', err.message);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   });

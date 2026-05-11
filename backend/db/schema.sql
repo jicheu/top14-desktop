@@ -37,3 +37,10 @@ CREATE TABLE IF NOT EXISTS score_events (
     detail TEXT,
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS youtube_links (
+    match_id    TEXT PRIMARY KEY,
+    video_id    TEXT,
+    video_title TEXT,
+    fetched_at  TEXT
+);

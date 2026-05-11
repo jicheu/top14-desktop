@@ -84,7 +84,7 @@ function positionPopover(win) {
 
 // ── Public factory ────────────────────────────────────────────────────────────
 
-export function createTray({ backendUrl, onOpenApp }) {
+export function createTray({ backendUrl, onOpenApp, onQuit }) {
   const icon = buildTrayIcon();
 
   try {
@@ -121,7 +121,10 @@ export function createTray({ backendUrl, onOpenApp }) {
         click: () => { popoverWindow.hide(); onOpenApp(); },
       },
       { type: 'separator' },
-      { label: 'Quitter', accelerator: 'Cmd+Q', click: () => app.quit() },
+      {
+        label: 'Quitter complètement',
+        click: () => onQuit(),
+      },
     ]);
     trayInstance.popUpContextMenu(menu);
   });

@@ -112,8 +112,19 @@ function openMainWindow() {
 
 // ── IPC ───────────────────────────────────────────────────────────────────────
 
+// Helper — fully quits the app, killing backend and all Electron processes.
+function quitApp() {
+  app.isQuitting = true;
+  backendProc?.kill();
+  setTimeout(() => process.exit(0), 300);
+  app.quit();
+}
+
+// ── IPC ───────────────────────────────────────────────────────────────────────
+
 ipcMain.handle('open-main-window', openMainWindow);
 ipcMain.handle('get-backend-url',  () => BACKEND_URL);
+ipcMain.handle('quit-app', () => quitApp());
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
@@ -138,6 +149,7 @@ app.whenReady().then(async () => {
   const result = createTray({
     backendUrl: BACKEND_URL,
     onOpenApp:  openMainWindow,
+    onQuit:     quitApp,
   });
   tray        = result.instance;
   hidePopover = result.hidePopover;

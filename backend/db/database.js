@@ -487,3 +487,21 @@ export function getTeamRecentMatches(teamId, competition, limit = 5) {
     LIMIT 5
   `, [teamId, teamId, competition]);
 }
+
+// --- YouTube links cache ---
+
+export function getYoutubeLink(matchId) {
+  const rows = queryAll(
+    'SELECT video_id, video_title, fetched_at FROM youtube_links WHERE match_id = ? AND video_id IS NOT NULL',
+    [matchId]
+  );
+  return rows[0] || null;
+}
+
+export function saveYoutubeLink(matchId, videoId, videoTitle) {
+  runSql(
+    `INSERT OR REPLACE INTO youtube_links (match_id, video_id, video_title, fetched_at)
+     VALUES (?, ?, ?, datetime('now'))`,
+    [matchId, videoId || null, videoTitle || null]
+  );
+}

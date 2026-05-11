@@ -1,34 +1,30 @@
 name: top14-live
+base: core24
 version: '1.0.0'
+title: Top 14 Live
 summary: Top 14 Rugby live score tracker
 description: |
   Follow Top 14 rugby matches in real time.
   Live scores, standings, and a tray icon for quick access from the system tray.
   The embedded backend polls live data automatically — no configuration needed.
-
-base: core22
 grade: stable
 confinement: strict
 
-# Icon shown in GNOME Software / Ubuntu Software and the app launcher
 icon: assets/icon.png
 
 apps:
   top14-live:
-    command: opt/top14-live/top14-live --no-sandbox
+    command: bin/top14-live
     desktop: usr/share/applications/top14-live.desktop
     extensions: [gnome]
     plugs:
       - network
       - network-bind
       - home
-      - opengl
       - audio-playback
-      - desktop
-      - desktop-legacy
-      - wayland
-      - x11
-      - unity7
+      - browser-support
+    environment:
+      NO_AT_BRIDGE: '1'
 
 parts:
   top14-live:
@@ -37,48 +33,74 @@ parts:
     build-snaps:
       - node/20/stable
     override-build: |
-      # Install dependencies
-      npm ci --omit=dev
+      # Install root dependencies (electron-builder and Electron itself)
+      npm ci
 
-      # Build the frontend (Vite → frontend-dist)
-      cd ../top14/frontend 2>/dev/null || true
-      npm ci && npm run build
-      cd $CRAFT_PART_SRC
-      rm -rf frontend-dist
-      cp -r ../top14/frontend/dist frontend-dist 2>/dev/null || true
+      # Install backend dependencies so electron-builder's extraResources
+      # includes backend/node_modules in the packaged app.
+      (cd backend && npm ci --omit=dev)
 
-      # Use electron-builder to produce a snap-compatible directory layout
-      npx electron-builder --linux dir --x64
+      # frontend-dist must be pre-built before running snapcraft.
+      # See SNAP_PACKAGING.md for instructions.
 
-      # Copy the unpacked app into the snap prefix
-      mkdir -p $CRAFT_PART_INSTALL/opt/top14-live
-      cp -r dist/linux-unpacked/. $CRAFT_PART_INSTALL/opt/top14-live/
+      # Build for the current system architecture; electron-builder auto-detects it
+      npx electron-builder --linux dir
+
+      # Locate the unpacked output directory (name varies by arch)
+      UNPACKED=$(ls -d dist/linux*unpacked 2>/dev/null | head -1)
+      if [ -z "$UNPACKED" ]; then
+        echo "ERROR: electron-builder unpacked output not found in dist/" >&2
+        exit 1
+      fi
+
+      mkdir -p "$CRAFT_PART_INSTALL/opt/top14-live"
+      cp -r "$UNPACKED"/. "$CRAFT_PART_INSTALL/opt/top14-live/"
+
+      # electron-builder names the binary after package.json "name" (top14-desktop);
+      # rename it to match the snap app command path.
+      if [ -f "$CRAFT_PART_INSTALL/opt/top14-live/top14-desktop" ]; then
+        mv "$CRAFT_PART_INSTALL/opt/top14-live/top14-desktop" \
+           "$CRAFT_PART_INSTALL/opt/top14-live/top14-live"
+      fi
 
       # Desktop entry
-      mkdir -p $CRAFT_PART_INSTALL/usr/share/applications
-      cat > $CRAFT_PART_INSTALL/usr/share/applications/top14-live.desktop <<EOF
-      [Desktop Entry]
-      Name=Top 14 Live
-      Comment=Top 14 rugby live score tracker
-      Exec=top14-live
-      Icon=${SNAP}/meta/gui/icon.png
-      Terminal=false
-      Type=Application
-      Categories=Sports;
-      StartupNotify=true
-      EOF
+      mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"
+      printf '%s\n' \
+        '[Desktop Entry]' \
+        'Name=Top 14 Live' \
+        'Comment=Top 14 rugby live score tracker' \
+        'Exec=top14-live' \
+        'Icon=top14-live' \
+        'Terminal=false' \
+        'Type=Application' \
+        'Categories=Sports;' \
+        'StartupNotify=true' \
+        > "$CRAFT_PART_INSTALL/usr/share/applications/top14-live.desktop"
 
-      # Icon
-      mkdir -p $CRAFT_PART_INSTALL/meta/gui
-      cp assets/icon.png $CRAFT_PART_INSTALL/meta/gui/icon.png
+      # Icon (hicolor theme so the desktop environment resolves it by name)
+      mkdir -p "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps"
+      cp assets/icon.png "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/top14-live.png"
+
+      # Launcher wrapper: clears stale GIO module cache (libgiolibproxy/libpxbackend
+      # noise) and passes Electron flags to suppress D-Bus enumeration errors.
+      mkdir -p "$CRAFT_PART_INSTALL/bin"
+      {
+        echo '#!/bin/bash'
+        echo '# Clear GIO module cache compiled against system libs absent in the snap.'
+        echo 'rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/gio-modules" 2>/dev/null || true'
+        printf 'export YOUTUBE_API_KEY=%s\n' "${YOUTUBE_API_KEY:-}"
+        echo 'exec "$SNAP/opt/top14-live/top14-live" \'
+        echo '  --no-sandbox \'
+        echo '  --disable-features=GlobalMediaControls \'
+        echo '  "$@"'
+      } > "$CRAFT_PART_INSTALL/bin/top14-live"
+      chmod +x "$CRAFT_PART_INSTALL/bin/top14-live"
+
     stage-packages:
-      - libgtk-3-0
-      - libnotify4
       - libnss3
       - libxss1
       - libxtst6
-      - xdg-utils
-      - libatspi2.0-0
-      - libdrm2
       - libgbm1
+      - libdrm2
       - libxcb-dri3-0
+      - xdg-utils
